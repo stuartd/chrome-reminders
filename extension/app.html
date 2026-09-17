@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meeting Reminders</title>
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header><span class="eyebrow">A LITTLE NUDGE, RIGHT ON TIME</span><h1>Meeting Reminders<span class="dot">.</span></h1><p>Stay in your flow. We’ll watch the clock.</p></header>
+    <div class="timing" aria-label="Reminder times"><span><strong>15</strong> min before</span><span><strong>5</strong> min before</span><span><strong>0</strong> at the start</span></div>
+    <p class="quiet-note">Already in the matching Meet call? We’ll skip the remaining reminders when we detect you’ve joined.</p>
+    <p id="feedback" role="status" aria-live="polite" hidden></p>
+    <section aria-labelledby="calendar-title">
+      <div class="section-heading"><h2 id="calendar-title">Your calendar</h2><span id="connection" class="pill">Not connected</span></div>
+      <p id="calendar-status">Loading…</p>
+      <div class="actions"><button id="connect" class="primary">Connect Google Calendar</button><button id="sync" hidden>Refresh</button><button id="disconnect" class="plain" hidden>Disconnect</button></div>
+      <p id="setup" class="hint" hidden>One-time Calendar setup is needed before connecting. Follow the README included with the extension. You can add a meeting manually below in the meantime.</p>
+      <a href="https://calendar.google.com/" target="_blank" rel="noreferrer">Open Google Calendar <span aria-hidden="true">↗</span></a>
+    </section>
+    <section aria-labelledby="test-title">
+      <h2 id="test-title">Make sure you’ll notice</h2>
+      <p>Try a desktop notification. For a background test, choose “In 1 minute”, then switch to your editor.</p>
+      <div class="actions"><button id="test">Test now</button><button id="test-later">In 1 minute</button></div>
+      <p id="test-status" class="hint"></p>
+      <p id="notification-status" class="hint">Windows must allow Chrome notifications. Focus / Do Not Disturb can silence or hide them.</p>
+    </section>
+    <section aria-labelledby="upcoming-title">
+      <div class="section-heading"><h2 id="upcoming-title">Coming up</h2><span id="event-count" class="count"></span></div>
+      <div id="events"></div>
+    </section>
+    <details>
+      <summary>Add a meeting manually</summary>
+      <form id="meeting-form">
+        <label>Meeting name<input name="title" required maxlength="200" placeholder="Design catch-up"></label>
+        <div class="fields"><label>Starts (your local time)<input name="start" type="datetime-local" required></label><label>Minutes<input name="duration" type="number" min="1" max="1440" value="30" required></label></div>
+        <label>Google Meet link <span class="optional">optional</span><input name="joinUrl" type="url" placeholder="https://meet.google.com/abc-defg-hij"></label>
+        <button class="primary" type="submit">Add meeting</button>
+      </form>
+    </details>
+    <footer>Chrome running · Computer awake · Notifications allowed<br>Calendar access is read-only. No external reminder service.</footer>
+  </main>
+</body>
+</html>

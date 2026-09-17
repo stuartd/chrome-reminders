@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Meeting Reminders",
+  "version": "0.1.0",
+  "description": "Meeting reminders 15 minutes before, 5 minutes before, and at the start. Quiet once you join Google Meet.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "alarms",
+    "notifications",
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://meet.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Meeting Reminders",
+    "default_popup": "app.html"
+  },
+  "options_page": "app.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "meet.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4wxOEvSonk+fsnAQ3DZ6nWQzEj9zqydGWQTuwopjSy6+wp3QDr4RRkHrCFtipRIqm8tqCcJ9Yf6NmiXaIb0C6lXTbajZqZ7luSW8ftWZiAfhXALcTbUtGtrMtzXXAWj/01UPo/PGF5qSVzeYOADeUayyIY/OH2dKKs8KGGauum2+H4Ev4NSelHwInBxKEbuA49P5kQCTAx29ojEZLmPTjkz8Z5zdYEhDTDrn0R1aOqxI5wKGMi+BM3n5a53WaxPXvYkB0QKUw6+rifYcnwNHgOrr2Yu5Rubn0uIyBPJKlLNyxo4AKi/fc4usWiF8vjtBsSR7KXnqhBjw7clbW7MVNwIDAQAB"
+}
