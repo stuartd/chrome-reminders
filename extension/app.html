@@ -13,7 +13,7 @@
     <div class="timing" aria-label="Reminder times"><span><strong>15</strong> min before</span><span><strong>5</strong> min before</span><span><strong>0</strong> at the start</span></div>
     <p class="quiet-note">Already in the matching Meet call? We’ll skip the remaining reminders when we detect you’ve joined.</p>
     <p id="feedback" role="status" aria-live="polite" hidden></p>
-    <section aria-labelledby="calendar-title">
+    <section id="calendar-section" aria-labelledby="calendar-title">
       <div class="section-heading"><h2 id="calendar-title">Your calendar</h2><span id="connection" class="pill">Not connected</span></div>
       <p id="calendar-status">Loading…</p>
       <div class="actions"><button id="connect" class="primary">Connect Google Calendar</button><button id="sync" hidden>Refresh</button><button id="disconnect" class="plain" hidden>Disconnect</button></div>
@@ -27,19 +27,24 @@
       <p id="test-status" class="hint"></p>
       <p id="notification-status" class="hint">Windows must allow Chrome notifications. Focus / Do Not Disturb can silence or hide them.</p>
     </section>
+    <section aria-labelledby="saved-title">
+      <h2 id="saved-title">Saved meetings</h2>
+      <div id="saved-meetings"></div>
+    </section>
+    <details id="meeting-editor" open>
+      <summary id="editor-title">Add a meeting</summary>
+      <form id="meeting-form">
+        <label>Meeting name<input name="title" required maxlength="200" placeholder="Design catch-up"></label>
+        <div class="fields"><label>Starts (your local time)<input name="start" type="datetime-local" required></label><label>Minutes<input name="duration" type="number" min="1" max="1440" value="30" required></label></div>
+        <label>Repeat<select name="repeat"><option value="none">Does not repeat</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="weekly">Every week</option><option value="fortnightly">Every 2 weeks</option></select></label>
+        <label>Google Meet link <span class="optional">optional</span><input name="joinUrl" type="url" placeholder="https://meet.google.com/abc-defg-hij"></label>
+        <div class="actions"><button id="save-meeting" class="primary" type="submit">Add meeting</button><button id="cancel-edit" type="button" hidden>Cancel</button></div>
+      </form>
+    </details>
     <section aria-labelledby="upcoming-title">
       <div class="section-heading"><h2 id="upcoming-title">Coming up</h2><span id="event-count" class="count"></span></div>
       <div id="events"></div>
     </section>
-    <details>
-      <summary>Add a meeting manually</summary>
-      <form id="meeting-form">
-        <label>Meeting name<input name="title" required maxlength="200" placeholder="Design catch-up"></label>
-        <div class="fields"><label>Starts (your local time)<input name="start" type="datetime-local" required></label><label>Minutes<input name="duration" type="number" min="1" max="1440" value="30" required></label></div>
-        <label>Google Meet link <span class="optional">optional</span><input name="joinUrl" type="url" placeholder="https://meet.google.com/abc-defg-hij"></label>
-        <button class="primary" type="submit">Add meeting</button>
-      </form>
-    </details>
     <footer>Chrome running · Computer awake · Notifications allowed<br>Calendar access is read-only. No external reminder service.</footer>
   </main>
 </body>

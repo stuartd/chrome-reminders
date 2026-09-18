@@ -1,4 +1,4 @@
-import { matchingMeetings, manualEvent, meetCode, reminderPlan, reminderText } from './core.js';
+import { matchingMeetings, manualEvent, manualOccurrences, meetCode, reminderPlan, reminderText } from './core.js';
 import { getToken, isConfigured, loadCalendar } from './calendar.js';
 
 const SYNC = 'calendar-sync';
@@ -7,7 +7,7 @@ const TEST = 'test-reminder';
 const SYNC_INTERVAL = 5 * 60_000;
 let state;
 
-const allEvents = () => [...state.events, ...state.manual].sort((a, b) => a.start - b.start);
+const allEvents = () => [...state.events, ...manualOccurrences(state.manual, Date.now())].sort((a, b) => a.start - b.start);
 const save = () => chrome.storage.local.set({ state });
 const recordFor = event => state.records[event.key] ||= { sent: [] };
 
@@ -68,7 +68,7 @@ async function showReminder(event, now) {
 
 async function reconcile() {
   const now = Date.now();
-  state.manual = state.manual.filter(event => event.end > now - 86_400_000);
+  state.manual = state.manual.filter(event => (event.repeat && event.repeat !== 'none') || event.end > now - 86_400_000);
   state.events = state.events.filter(event => event.end > now - 86_400_000);
   const events = allEvents();
   const activeKeys = new Set(events.filter(event => event.end > now).map(event => event.key));
@@ -140,7 +140,7 @@ async function testNotification() {
 async function handle(message) {
   switch (message.type) {
     case 'get-state':
-      return { ...state, events: allEvents().filter(event => event.end > Date.now()), manual: undefined,
+      return { ...state, events: allEvents().filter(event => event.end > Date.now()),
         configured: isConfigured(), notificationPermission: await chrome.notifications.getPermissionLevel(),
         testAt: (await chrome.alarms.get(TEST))?.scheduledTime ?? null };
     case 'connect': {
@@ -176,6 +176,27 @@ async function handle(message) {
       await save();
       await reconcile();
       return;
+    case 'update-meeting': {
+      const index = state.manual.findIndex(event => event.key === message.key);
+      if (index < 0) throw new Error('Meeting no longer exists.');
+      const previous = state.manual[index];
+      const updated = manualEvent(message.meeting || {}, crypto.randomUUID(), Date.now(), true);
+      // Keep occurrence records for title/link edits; schedule edits get fresh identities.
+      if (updated.start === previous.start && updated.repeat === (previous.repeat || 'none')) updated.key = previous.key;
+      state.manual[index] = { ...updated, enabled: previous.enabled !== false };
+      await save();
+      await reconcile();
+      return;
+    }
+    case 'set-enabled': {
+      const meeting = state.manual.find(event => event.key === message.key);
+      if (!meeting) throw new Error('Meeting no longer exists.');
+      if (typeof message.enabled !== 'boolean') throw new Error('Choose whether the meeting is enabled.');
+      meeting.enabled = message.enabled;
+      await save();
+      await reconcile();
+      return;
+    }
     case 'dismiss':
       await suppress(allEvents().filter(event => event.key === message.key), 'dismissed');
       await reconcile();

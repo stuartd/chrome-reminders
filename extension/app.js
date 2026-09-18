@@ -1,5 +1,60 @@
 const $ = selector => document.querySelector(selector);
 let busy = false;
+let editingKey = null;
+const repeats = { none: 'One-off', weekdays: 'Every weekday', weekly: 'Every week', fortnightly: 'Every 2 weeks' };
+
+function resetEditor() {
+  editingKey = null;
+  $('#meeting-form').reset();
+  $('#editor-title').textContent = 'Add a meeting';
+  $('#save-meeting').textContent = 'Add meeting';
+  $('#cancel-edit').hidden = true;
+}
+
+function editMeeting(meeting) {
+  editingKey = meeting.key;
+  const form = $('#meeting-form');
+  const date = new Date(meeting.start);
+  const pad = value => String(value).padStart(2, '0');
+  form.elements.title.value = meeting.title;
+  form.elements.start.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  form.elements.duration.value = (meeting.end - meeting.start) / 60_000;
+  form.elements.repeat.value = meeting.repeat || 'none';
+  form.elements.joinUrl.value = meeting.joinUrl || '';
+  $('#editor-title').textContent = 'Edit meeting';
+  $('#save-meeting').textContent = 'Save changes';
+  $('#cancel-edit').hidden = false;
+  $('#meeting-editor').open = true;
+  form.elements.title.focus();
+}
+
+function renderSaved(meeting) {
+  const row = document.createElement('article');
+  row.className = 'meeting';
+  const title = document.createElement('h3');
+  title.textContent = meeting.title;
+  const schedule = document.createElement('p');
+  schedule.textContent = `${repeats[meeting.repeat || 'none']} · ${new Date(meeting.start).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })} · ${(meeting.end - meeting.start) / 60_000} min`;
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const label = document.createElement('label');
+  label.className = 'enabled';
+  const enabled = document.createElement('input');
+  enabled.type = 'checkbox';
+  enabled.checked = meeting.enabled !== false;
+  enabled.setAttribute('aria-label', `Reminders for ${meeting.title}`);
+  enabled.addEventListener('change', () => {
+    if (busy) { enabled.checked = meeting.enabled !== false; return; }
+    void action(() => request('set-enabled', { key: meeting.key, enabled: enabled.checked }), enabled.checked ? 'Reminders enabled.' : 'Reminders disabled.');
+  });
+  label.append(enabled, 'Enabled');
+  actions.append(label, button('Edit', () => editMeeting(meeting)), button('Remove', () => action(async () => {
+    await request('remove-meeting', { key: meeting.key });
+    if (editingKey === meeting.key) resetEditor();
+  }, 'Meeting removed.')));
+  row.append(title, schedule, actions);
+  return row;
+}
 
 async function request(type, extra = {}) {
   const reply = await chrome.runtime.sendMessage({ type, ...extra });
@@ -44,7 +99,7 @@ function renderMeeting(event, record) {
   const status = document.createElement('p');
   status.textContent = record?.suppressed === 'joined' ? 'Joined · remaining reminders skipped'
     : record?.suppressed ? 'Dismissed · remaining reminders skipped'
-      : `${event.source === 'manual' ? 'Added manually' : 'Google Calendar'} · ${event.start <= Date.now() ? 'In progress' : 'Reminders scheduled'}`;
+      : `${event.source === 'manual' ? repeats[event.repeat || 'none'] : 'Google Calendar'} · ${event.start <= Date.now() ? 'In progress' : 'Reminders scheduled'}`;
   const actions = document.createElement('div');
   actions.className = 'actions';
   if (event.joinUrl || event.calendarUrl) {
@@ -56,13 +111,14 @@ function renderMeeting(event, record) {
     actions.append(link);
   }
   if (!record?.suppressed) actions.append(button('Dismiss meeting', () => action(() => request('dismiss', { key: event.key }), 'Remaining reminders for this meeting dismissed.')));
-  if (event.source === 'manual') actions.append(button('Remove', () => action(() => request('remove-meeting', { key: event.key }), 'Meeting removed.')));
   card.append(when, title, status, actions);
   return card;
 }
 
 async function refresh() {
   const state = await request('get-state');
+  $('#calendar-section').hidden = !state.configured && !state.connected;
+  $('#saved-meetings').replaceChildren(...state.manual.map(renderSaved));
   $('#connection').textContent = state.connected ? state.syncError ? 'Needs attention' : 'Connected' : 'Not connected';
   $('#connection').classList.toggle('connected', state.connected && !state.syncError);
   $('#calendar-status').textContent = state.syncError || (state.connected
@@ -84,7 +140,7 @@ async function refresh() {
   if (!state.events.length) {
     const empty = document.createElement('p');
     empty.className = 'empty';
-    empty.textContent = state.connected ? 'No upcoming timed events found in your primary calendar. All-day events and declined invitations are skipped.' : 'Your next meeting will appear here. Connect Calendar or add one manually.';
+    empty.textContent = state.connected ? 'No upcoming timed events found in your primary calendar. All-day events and declined invitations are skipped.' : 'No upcoming meetings.';
     list.append(empty);
   }
 }
@@ -98,8 +154,14 @@ $('#meeting-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = event.currentTarget;
   const meeting = Object.fromEntries(new FormData(form));
-  void action(async () => { await request('add-meeting', { meeting }); form.reset(); }, 'Meeting added. Reminders are scheduled for 15 minutes before, 5 minutes before, and the start.');
+  const key = editingKey;
+  void action(async () => {
+    await request(key ? 'update-meeting' : 'add-meeting', { key, meeting });
+    resetEditor();
+  }, key ? 'Meeting updated.' : 'Meeting added.');
 });
+
+$('#cancel-edit').addEventListener('click', resetEditor);
 
 let refreshTimer;
 chrome.storage.onChanged.addListener((_changes, area) => {

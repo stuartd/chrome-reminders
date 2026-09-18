@@ -39,19 +39,54 @@ export function normalizeEvent(event) {
   };
 }
 
-export function manualEvent(input, id, now) {
+export function manualEvent(input, id, now, editing = false) {
   const title = String(input.title || '').trim();
   const start = Date.parse(input.start);
   const duration = Number(input.duration);
   const rawUrl = String(input.joinUrl || '').trim();
+  const repeat = input.repeat || 'none';
+  if (!['none', 'weekdays', 'weekly', 'fortnightly'].includes(repeat)) throw new Error('Choose a valid repeat pattern.');
   if (!title || title.length > 200) throw new Error('Enter a meeting title (up to 200 characters).');
-  if (!Number.isFinite(start) || start <= now) throw new Error('Choose a meeting time in the future.');
+  if (!Number.isFinite(start) || (!editing && start <= now)) throw new Error('Choose a meeting time in the future.');
+  if (repeat === 'weekdays' && [0, 6].includes(new Date(start).getDay())) throw new Error('Choose a weekday for the first meeting.');
   if (!Number.isFinite(duration) || duration < 1 || duration > 1440) throw new Error('Duration must be between 1 and 1,440 minutes.');
   if (rawUrl && !meetUrl(rawUrl)) throw new Error('Use a Google Meet link like https://meet.google.com/abc-defg-hij.');
   return {
-    key: `manual:${id}:${start}`, source: 'manual', title, start,
+    key: `manual:${id}:${start}`, source: 'manual', title, start, repeat, enabled: input.enabled !== false,
     end: start + duration * MINUTE, joinUrl: meetUrl(rawUrl), calendarUrl: null
   };
+}
+
+// Advance calendar dates with Date's local-time rules, preserving the wall clock across DST.
+export function manualOccurrences(meetings, now) {
+  const events = [];
+  const horizon = now + 21 * 86_400_000;
+  for (const meeting of meetings) {
+    if (meeting.enabled === false) continue;
+    if (!meeting.repeat || meeting.repeat === 'none') {
+      events.push(meeting);
+      continue;
+    }
+    const anchor = new Date(meeting.start);
+    const from = new Date(Math.max(meeting.start, now - 86_400_000));
+    const dayNumber = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000;
+    const firstDay = dayNumber(anchor);
+    const candidate = new Date(from.getFullYear(), from.getMonth(), from.getDate(), anchor.getHours(), anchor.getMinutes());
+    while (candidate.getTime() <= horizon) {
+      const days = dayNumber(candidate) - firstDay;
+      const matches = meeting.repeat === 'weekdays' ? ![0, 6].includes(candidate.getDay())
+        : days % (meeting.repeat === 'fortnightly' ? 14 : 7) === 0;
+      const start = candidate.getTime();
+      const end = start + meeting.end - meeting.start;
+      if (days >= 0 && matches && start >= meeting.start && end > now) {
+        events.push({ ...meeting, seriesKey: meeting.key, key: `${meeting.key}:occurrence:${start}`, start, end });
+      }
+      // Reconstruct each date so a spring-forward adjustment cannot move later meetings.
+      candidate.setDate(candidate.getDate() + 1);
+      candidate.setHours(anchor.getHours(), anchor.getMinutes(), 0, 0);
+    }
+  }
+  return events;
 }
 
 // Collapse late alarms after wake/restart to the most recent stage only.

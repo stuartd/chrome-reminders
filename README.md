@@ -5,7 +5,7 @@ A small Chrome extension for those meetings you miss while deep in code. It send
 The first version includes:
 
 - Read-only Google Calendar sync of the primary calendar, covering the next seven days and refreshing every five minutes.
-- Manual meetings, so you can try it without setting up Google access.
+- Manual meetings with weekday, weekly and fortnightly repeats, editing, and an enabled toggle. No Google access needed.
 - An immediate notification test and a one-minute background test.
 - Best-effort Google Meet detection: once an active call is detected for a matching meeting, remaining reminders for that occurrence are skipped.
 - Notification actions to open the meeting or dismiss its remaining reminders.
@@ -18,7 +18,15 @@ The first version includes:
 3. Enable **Developer mode**, click **Load unpacked**, and select the **`extension` folder** containing `manifest.json`.
 4. Pin **Meeting Reminders** using Chrome's extensions menu, then open it.
 5. Click **In 1 minute**, close the popup, and switch to your editor. A desktop notification should arrive about a minute later.
-6. Expand **Add a meeting manually**, give it a future start time, and save it. A Meet link is optional.
+6. Under **Add a meeting**, enter its name, next start time, duration and repeat pattern, then save it. A Meet link is optional.
+
+## Recurring meetings without Calendar access
+
+Add a standup with **Every weekday (Mon–Fri)**, a weekly chat with **Every week**, or a retro with **Every 2 weeks**. Weekly and fortnightly meetings repeat on the weekday of the first start date. Reminders remain at 15 minutes before, 5 minutes before and the start.
+
+Repeats continue indefinitely, including holidays and cancelled meetings, until you edit, disable or remove the saved meeting. **Saved meetings** contains the editing controls and **Enabled** checkbox. **Dismiss meeting** and detected Meet participation only silence the current occurrence, leaving future occurrences active. Recurring occurrences are scheduled over a rolling 21-day window, refreshed every five minutes even without Calendar access and rebuilt when Chrome starts.
+
+Repeats follow the computer's local time, including daylight-saving changes. If you change the computer's time zone, review the saved start times. In the skipped hour when clocks move forward, a meeting shifts forward by the clock change; in the repeated hour when clocks move back, it runs once at the earlier instance. With no Calendar configuration, the connection panel is hidden.
 
 If Developer mode or Load unpacked is disabled by policy, your workplace administrator needs to approve/distribute the extension. This extension does not bypass managed Chrome policies. This is an unpacked development build, not a published Chrome Web Store extension.
 

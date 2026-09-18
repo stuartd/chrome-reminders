@@ -186,3 +186,39 @@ test('a meeting becoming due during notification delivery gets an immediate foll
   await h.alarm('next-reminder');
   assert.equal(h.shown.length, 2);
 });
+
+test('manual recurring meetings persist, dismiss one occurrence, and notify next week', async t => {
+  const h = await harness(t, { manual: [meeting({ repeat: 'weekly' })] });
+  assert.equal(h.shown.length, 1);
+  const first = (await h.flush()).data.events[0];
+  await h.request({ type: 'dismiss', key: first.key });
+  const nextStart = (await h.flush()).data.events[1].start;
+  h.time(nextStart - 15 * MINUTE);
+  await h.alarm('calendar-sync');
+  assert.equal(h.shown.length, 2);
+  assert.equal(h.state().manual.length, 1);
+  assert.notEqual(h.shown[0].id, h.shown[1].id);
+  const persisted = h.state();
+  const restart = await harness(t, persisted);
+  assert.equal(restart.state().manual.length, 1);
+  assert.ok(restart.alarms.has('next-reminder'));
+});
+
+test('disable, re-enable, edit and remove a recurring series without Calendar access', async t => {
+  const h = await harness(t);
+  const input = { title: 'Retro', start: new Date(baseline + 60 * MINUTE).toISOString(), duration: 30, repeat: 'fortnightly' };
+  assert.equal((await h.request({ type: 'add-meeting', meeting: input })).ok, true);
+  const key = h.state().manual[0].key;
+  assert.ok(h.alarms.has('next-reminder'));
+  assert.equal((await h.request({ type: 'set-enabled', key, enabled: false })).ok, true);
+  assert.equal((await h.flush()).data.events.length, 0);
+  assert.equal(h.alarms.has('next-reminder'), false);
+  assert.equal((await h.request({ type: 'set-enabled', key, enabled: true })).ok, true);
+  assert.ok(h.alarms.has('next-reminder'));
+  assert.equal((await h.request({ type: 'update-meeting', key, meeting: { ...input, title: 'Team retro' } })).ok, true);
+  assert.equal(h.state().manual[0].title, 'Team retro');
+  assert.equal(h.state().manual[0].key, key);
+  await h.request({ type: 'remove-meeting', key });
+  assert.equal(h.state().manual.length, 0);
+  assert.equal(h.alarms.has('next-reminder'), false);
+});
